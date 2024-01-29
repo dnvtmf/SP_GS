@@ -1,0 +1,59 @@
+# user
+temp.py
+temp.tex
+temp.txt
+build/
+dist/
+/results/
+temp/
+/data
+output
+build
+diff_rasterization/diff_rast.egg-info
+diff_rasterization/dist
+tensorboard_3d
+screenshots
+/submodules/
+
+# compilation and distribution
+.pytest_cache/
+__pycache__
+_ext
+*.pyc
+*.so
+*.a
+*.exe
+
+# pytorch/python/numpy formats
+*.pt
+*.pth
+*.pkl
+*.npy
+
+# ipython/jupyter notebooks
+*.ipynb
+**/.ipynb_checkpoints/
+
+# Editor temporaries
+*.swn
+*.swo
+*.swp
+*~
+
+# Pycharm editor settings
+.idea
+.vscode
+.DS_Store
+.pytest*
+
+# CMake
+CMakeLists.txt.user
+CMakeCache.txt
+CMakeFiles
+CMakeScripts
+Testing
+Makefile
+cmake_install.cmake
+install_manifest.txt
+compile_commands.json
+CTestTestfile.cmake

@@ -1,0 +1,11 @@
+submodules/depth-diff-gaussian-rasterization
+submodules/simple-knn
+submodules/lietorch
+plyfile==0.8.1
+tqdm
+imageio==2.27.0
+opencv-python
+imageio-ffmpeg
+scipy
+dearpygui
+lpips
