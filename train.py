@@ -7,20 +7,21 @@ from random import randint
 import torch
 from tqdm import tqdm
 import torch.nn.functional as F
+from lietorch import SO3
 
 from arguments import ModelParams, PipelineParams, OptimizationParams
 from gaussian_renderer import render
-from scene import Scene, GaussianModel, DeformModel, NonRigidDeformationModel
+from scene import Scene, GaussianModel, DeformModel
 from utils.general_utils import safe_state, get_linear_noise_func
 from utils.image_utils import psnr
 from utils.loss_utils import l1_loss, ssim
-from lietorch import SO3
 
 try:
     from torch.utils.tensorboard import SummaryWriter
 
     TENSORBOARD_FOUND = True
 except ImportError:
+    SummaryWriter = None
     TENSORBOARD_FOUND = False
 
 
@@ -188,10 +189,6 @@ def training(
                 if iteration % opt.opacity_reset_interval == 0 or (
                     dataset.white_background and iteration == opt.densify_from_iter):
                     gaussians.reset_opacity()
-            # Superpoints Densification
-            if iteration >= opt.warm_up:
-                deform.split_prune_superpoints(
-                    iteration, gaussians.get_xyz, viewspace_point_tensor, visibility_filter, loss_aux)
             # Optimizer step
             if iteration < opt.iterations:
                 gaussians.optimizer.step()

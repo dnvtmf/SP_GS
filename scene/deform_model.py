@@ -156,7 +156,7 @@ class SuperpointModel(nn.Module):
 
 
 class DeformModel:
-    def __init__(self, num_points=0, train_times=None, num_superpoints=300, num_knn=5, sp_net_large=False):
+    def __init__(self, num_points=0, train_times=None, num_superpoints=300, num_knn=5, sp_net_large=True):
         if sp_net_large:
             self.sp_deform = SuperpointDeformationNetwork(D=8, W=256, skips=[4], dim_rot=DIM_ROTATION).cuda()
         else:
@@ -166,7 +166,6 @@ class DeformModel:
         self.spatial_lr_scale = 5
 
     def step(self, xyz, time_emb, use_mlp=True):
-        # return (0, 0, 0), (0, 0)
         if use_mlp:
             self.sp_model.init_superpoints(xyz)
             sp_delta_xyz, sp_delta_r = self.sp_deform(self.sp_model.sp_xyz, time_emb)
@@ -176,7 +175,7 @@ class DeformModel:
         return (delta_xyz, delta_r, 0), (sp_delta_xyz, sp_delta_r)
 
     def train_setting(self, training_args):
-        l = [{
+        gp = [{
             'params': list(self.sp_deform.parameters()),
             'lr': training_args.deform_lr_init,
             "name": "deform"
@@ -185,7 +184,7 @@ class DeformModel:
             'lr': training_args.A_lr_init,
             'name': 'A',
         }]
-        self.optimizer = torch.optim.Adam(l, lr=0.0, eps=1e-15)
+        self.optimizer = torch.optim.Adam(gp, lr=0.0, eps=1e-15)
 
         self.deform_scheduler_args = get_expon_lr_func(
             lr_init=training_args.deform_lr_init,
@@ -252,6 +251,3 @@ class DeformModel:
             self.sp_model.sp_delta_r[i] = sp_delta_r
             self.sp_model.sp_delta_t[i] = sp_delta_xyz
         print("updte all defromations for superpoints")
-
-    def split_prune_superpoints(self, *args, **kwargs):
-        pass

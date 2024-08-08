@@ -14,7 +14,7 @@ from typing import Dict, Union, Sequence
 import numpy as np
 import torch
 from plyfile import PlyData, PlyElement
-from simple_knn._C import distCUDA2
+from simple_knn._C import distCUDA2  # noqa
 from torch import nn, Tensor
 
 from utils.general_utils import inverse_sigmoid, get_expon_lr_func, build_rotation

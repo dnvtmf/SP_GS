@@ -41,7 +41,7 @@ We organize the datasets as follows:
 git clone https://github.com/dnvtmf/SP_GS --recursive
 cd SP_GS
 
-conda create -n sp_gs_env python=3.7
+conda create -n sp_gs_env  # python>=3.8
 conda activate sp_gs_env
 
 # install pytorch
@@ -53,23 +53,15 @@ pip install -r requirements.txt
 
 ### Train
 
-**D-NeRF:**
-
 ```shell
-python train.py -s path/to/your/d-nerf/dataset -m output/exp-name --eval --is_blender
-```
-
-**NeRF-DS/HyperNeRF:**
-
-```shell
-python train.py -s path/to/your/real-world/dataset -m output/exp-name --eval
+python train.py -s <path/to/your/dataset> -m <output/exp-name> --eval
 ```
 
 ### Render & Evaluation
 
 ```shell
-python render.py -m output/exp-name
-python metrics.py -m output/exp-name
+python render.py -m <output/exp-name>
+python metrics.py <-m output/exp-name>
 ```
 
 We provide several modes for rendering:

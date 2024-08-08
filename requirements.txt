@@ -1,4 +1,4 @@
-submodules/depth-diff-gaussian-rasterization
+submodules/diff-gaussian-rasterization
 submodules/simple-knn
 submodules/lietorch
 plyfile==0.8.1
@@ -9,3 +9,5 @@ imageio-ffmpeg
 scipy
 dearpygui
 lpips
+torchmetrics
+rich

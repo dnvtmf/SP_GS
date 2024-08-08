@@ -1,9 +1,7 @@
 #!/usr/bin/env bash
 scenes=(vrig-3dprinter vrig-broom vrig-chicken vrig-peel-banana)
 gpus=(0 1 2 3)
-
-#args=(--sp_net_large)
-args=(--sp_net_large --densification_interval 1000 --densify_until_iter 10000)
+args=(--densification_interval 1000 --densify_until_iter 10000)
 test_args=()
 num_scenes=${#scenes[@]}
 num_gpus=${#gpus[@]}
@@ -21,6 +19,7 @@ do
     screen -S ${gpu_id} -p 0 -X stuff "^M"
     screen -S ${gpu_id} -p 0 -X stuff "export CUDA_VISIBLE_DEVICES=${gpus[$i]}^M"
     screen -S ${gpu_id} -p 0 -X stuff "cd ~/Projects/NeRF/SP_GS^M"
+    screen -S ${gpu_id} -p 0 -X stuff "conda activate sp_gs_env^M"
 done
 screen -ls%
 

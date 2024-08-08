@@ -70,8 +70,6 @@ class ModelParams(ParamGroup):
         self.sp_net_large = True
         self.num_superpoints = 300
         self.num_knn = 5
-        # self.camera_noise_r = 0.
-        # self.camera_noise_t = 0.
         super().__init__(parser, "Loading Parameters", sentinel)
 
     def extract(self, args):

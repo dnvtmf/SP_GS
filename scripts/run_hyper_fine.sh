@@ -2,7 +2,7 @@
 scenes=(vrig-3dprinter vrig-broom vrig-chicken vrig-peel-banana)
 gpus=(0 1 2 3)
 
-args=(--sp_net_large --warm_up 0 --iterations 20000 --densify_from_iter 30000 --densify_until_iter -1 \
+args=(--warm_up 0 --iterations 20000 --densify_from_iter 30000 --densify_until_iter -1 \
  --deform_lr_max_steps 20000 --position_lr_max_steps 20000)
 test_args=()
 num_scenes=${#scenes[@]}
@@ -21,6 +21,7 @@ do
     screen -S ${gpu_id} -p 0 -X stuff "^M"
     screen -S ${gpu_id} -p 0 -X stuff "export CUDA_VISIBLE_DEVICES=${gpus[$i]}^M"
     screen -S ${gpu_id} -p 0 -X stuff "cd ~/Projects/NeRF/SP_GS^M"
+    screen -S ${gpu_id} -p 0 -X stuff "conda activate sp_gs_env^M"
 done
 screen -ls%
 

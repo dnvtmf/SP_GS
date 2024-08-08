@@ -1,9 +1,7 @@
 #!/usr/bin/env bash
 scenes=(as basin bell cup plate press sieve)
 gpus=(0 1 2 3 4 5 6 7)
-#scenes=( sieve)
-#gpus=(0 1 2 3 4 5 6 7)
-args=(--sp_net_large --warm_up 0 --iterations 20000 --densify_from_iter 0 --densify_until_iter 10000 \
+args=(--warm_up 0 --iterations 20000 --densify_from_iter 0 --densify_until_iter 10000 \
  --deform_lr_max_steps 20000 --position_lr_max_steps 20000)
 test_args=()
 num_scenes=${#scenes[@]}
@@ -22,6 +20,7 @@ do
     screen -S ${gpu_id} -p 0 -X stuff "^M"
     screen -S ${gpu_id} -p 0 -X stuff "export CUDA_VISIBLE_DEVICES=${gpus[$i]}^M"
     screen -S ${gpu_id} -p 0 -X stuff "cd ~/Projects/NeRF/SP_GS^M"
+    screen -S ${gpu_id} -p 0 -X stuff "conda activate sp_gs_env^M"
 done
 screen -ls%
 

@@ -1,14 +1,12 @@
 #!/usr/bin/env bash
-scenes=(bouncingballs  hellwarrior  hook  jumpingjacks lego  mutant  standup trex)
-gpus=(0 1 2 3 4 5 6 7 8 9)
-#scenes=(hellwarrior)
-#gpus=(1)
+scenes=(bouncingballs hellwarrior hook jumpingjacks lego  mutant standup trex)
+gpus=(0 1 2 3 4 5 6 7)
 args=(--warm_up 0 --iterations 20000 --densify_from_iter 0 --densify_until_iter 10000 \
- --deform_lr_max_steps 20000 --position_lr_max_steps 20000 --sp_net_large)
+ --deform_lr_max_steps 20000 --position_lr_max_steps 20000)
 test_args=()
 num_scenes=${#scenes[@]}
 num_gpus=${#gpus[@]}
-out_dir=D-NeRF-fine-2
+out_dir=D-NeRF-fine
 echo "There are ${num_gpus} gpus and ${num_scenes} scenes"
 
 for (( i = 0;  i < ${num_gpus}; ++i ))
@@ -22,6 +20,7 @@ do
     screen -S ${gpu_id} -p 0 -X stuff "^M"
     screen -S ${gpu_id} -p 0 -X stuff "export CUDA_VISIBLE_DEVICES=${gpus[$i]}^M"
     screen -S ${gpu_id} -p 0 -X stuff "cd ~/Projects/NeRF/SP_GS^M"
+    screen -S ${gpu_id} -p 0 -X stuff "conda activate sp_gs_env^M"
 done
 screen -ls%
 
