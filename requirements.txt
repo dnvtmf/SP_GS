@@ -11,3 +11,5 @@ dearpygui
 lpips
 torchmetrics
 rich
+seaborn
+

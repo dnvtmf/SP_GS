@@ -2,27 +2,39 @@ import argparse
 import math
 from pathlib import Path
 from typing import Dict, List
-from collections import defaultdict
 
+import imageio
 import cv2
 import dearpygui.dearpygui as dpg
 import numpy as np
 import torch
 from torch import Tensor
 import torch.nn.functional as F
+import seaborn as sns
 
-from utils.general_utils import inverse_sigmoid, get_expon_lr_func, build_rotation
-from utils.general_utils import strip_symmetric, build_scaling_rotation
+from utils.general_utils import inverse_sigmoid
 from utils.system_utils import searchForMaxIteration
 from scene.gaussian_model import GaussianModel
 from scene.deform_model import SuperpointModel
 from utils.sh_utils import eval_sh
-from gaussian_renderer import render, GaussianRasterizationSettings, GaussianRasterizer
-from scene.cameras import MiniCam
-import extension as ext
-from extension import ops_3d, utils
-from extension.ops_3d.lietorch import SO3
-from extension.utils.gui import Viewer3D
+from gaussian_renderer import GaussianRasterizationSettings, GaussianRasterizer
+from utils import ops_3d
+from utils.gui_viewer import Viewer3D
+
+
+def get_colors(num_colors=8, mode=0, return_numpy=False, channels=3, shuffle=True, **kwargs):
+    if mode == 0:
+        colors = sns.color_palette("hls", num_colors, **kwargs)
+    elif mode == 1:
+        colors = sns.color_palette('Blues', num_colors)
+    else:
+        colors = sns.color_palette(n_colors=num_colors, **kwargs)
+    colors = np.array(colors)
+    if channels == 4:
+        colors = np.concatenate([colors, np.ones_like(colors[:, :1])], axis=-1)
+    if shuffle:
+        np.random.shuffle(colors)
+    return colors if return_numpy else torch.from_numpy(colors)
 
 
 def quaternion_multiply(q1, q2):
@@ -38,8 +50,8 @@ def quaternion_multiply(q1, q2):
 
 
 def R_to_quaternion(R: Tensor):
-    w = 0.5 * torch.sqrt(R[..., 0, 0] + R[..., 1, 1] + R[..., 2, 2] + 1)
-    w_ = 1. / (4 * w + 1e-10)  # 避免数值不稳定, 存在不用除法的算法
+    w = 0.5 * torch.sqrt((R[..., 0, 0] + R[..., 1, 1] + R[..., 2, 2] + 1).clamp_min(1e-10))  # 避免数值不稳定
+    w_ = 0.25 / w
     x = (R[..., 2, 1] - R[..., 1, 2]) * w_
     y = (R[..., 0, 2] - R[..., 2, 0]) * w_
     z = (R[..., 1, 0] - R[..., 0, 1]) * w_
@@ -214,7 +226,7 @@ class SP_GS_GUI:
                     self.tree_mask.new_ones(1)
                 ])
                 self.M += N
-            self.sp_colors = ext.utils.get_colors(self.M).to(self.device).float()
+            self.sp_colors = get_colors(self.M).to(self.device).float()
             self.tree_T[now] = ops_3d.translate(-gs.get_xyz.mean(dim=0))
             self.num_object += 1
             print('add model from:',
@@ -230,7 +242,7 @@ class SP_GS_GUI:
             self.viewer.set_need_update()
 
         with dpg.file_dialog(
-            directory_selector=True,
+            # directory_selector=True,
             show=False,
             callback=load_model,
             id="load_model_dialog_id",
@@ -287,7 +299,7 @@ class SP_GS_GUI:
                 M += self.sp[i].sp_delta_t.shape[1]
             self.p2sp = torch.cat(p2sp)
             self.M = M
-            self.sp_colors = ext.utils.get_colors(self.M).to(self.device).float()
+            self.sp_colors = get_colors(self.M).to(self.device).float()
             dpg.configure_item('sp_idx', max_value=len(self.tree_parent))
             dpg.push_container_stack('gui_edit')
             self.scene_gui_build(-1)
@@ -439,7 +451,7 @@ class SP_GS_GUI:
 
         with dpg.group(horizontal=True):
             def save_image(sender, app_data):
-                utils.save_image(app_data['file_path_name'], self.viewer.data)
+                imageio.v3.imwrite(app_data['file_path_name'], ops_3d.as_np_image(self.viewer.data))
                 print('save image to', app_data['file_path_name'])
 
             with dpg.file_dialog(directory_selector=False,
@@ -460,7 +472,8 @@ class SP_GS_GUI:
             def save_video(sender, app_data):
                 videos = np.stack(self.saved_video, axis=0)
                 save_path = Path(app_data['file_path_name'])
-                utils.save_mp4(save_path, videos, fps=dpg.get_value('fps_video'))
+                # utils.save_mp4(save_path, videos, fps=dpg.get_value('fps_video'))
+                imageio.v3.imwrite(save_path, videos, fps=dpg.get_value('fps_video'), quality=8)
                 self.saved_video = []
                 dpg.configure_item('save_video', label='start')
                 print(f"save videos {videos.shape} to {save_path}")
@@ -762,7 +775,8 @@ class SP_GS_GUI:
     def rendering(self, Tw2v, fovy, size):
         if self.num_object == 0:
             return self.viewer.data
-        Tw2v = ops_3d.convert_coord_system(Tw2v.cuda(), 'opengl', 'colmap')
+        Tw2v = Tw2v.cuda()
+        # Tw2v = ops_3d.convert_coord_system(Tw2v, 'opengl', 'colmap')
         Tv2c = ops_3d.perspective_v2(fovy, size=self.image_size).cuda()
         Tv2w = torch.inverse(Tw2v)
         Tw2c = Tv2c @ Tw2v
@@ -901,7 +915,7 @@ class SP_GS_GUI:
             axis = ops_3d.xfm(axis, Tw2c, homo=True)
             axis = ((axis[:, :2] / axis[:, -1:] + 1) * axis.new_tensor(size) - 1) * 0.5
             axis = axis.cpu().numpy().astype(np.int32)
-            images = np.ascontiguousarray(utils.as_np_image(images))
+            images = np.ascontiguousarray(ops_3d.as_np_image(images))
             images = cv2.line(images, axis[0], axis[1], [255, 0, 0], axis_size)
             images = cv2.line(images, axis[0], axis[2], [0, 255, 0], axis_size)
             images = cv2.line(images, axis[0], axis[3], [0, 0, 255], axis_size)
@@ -926,8 +940,8 @@ class SP_GS_GUI:
             rotations = None
         else:
             v = line_p2 - points
-            rotations = ops_3d.rotation.direction_vector_to_quaternion(v.new_tensor([[1, 0, 0]]), v)
-            rotations = ops_3d.quaternion.normalize(rotations)
+            rotations = ops_3d.direction_vector_to_quaternion(v.new_tensor([[1, 0, 0]]), v)
+            rotations = ops_3d.normalize(rotations)
         return self.add_gaussians(net_out, points, points.new_tensor([0., 1., 0.]), scales, rotations)
 
     def add_gaussians(self, net_out, points, colors, scales, rotations=None, opacity=None, replace=False):
@@ -1014,7 +1028,7 @@ class SP_GS_GUI:
                 last_size = now_size
             dpg.configure_item('control', label=f"FPS: {dpg.get_frame_rate()}")
             if self.is_save_video:
-                self.saved_video.append(utils.as_np_image(self.viewer.data).copy())
+                self.saved_video.append(ops_3d.as_np_image(self.viewer.data).copy())
                 dpg.configure_item('save_video', label=f"save({len(self.saved_video)})")
                 if len(self.saved_video) == dpg.get_value('n_video'):
                     self.is_auto_save_video = False

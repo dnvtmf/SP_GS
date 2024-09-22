@@ -72,6 +72,18 @@ We provide several modes for rendering:
 - `view`: view synthesis tasks for real-world dataset
 - `original`: time and view synthesis tasks for real-world dataset
 
+#### Visualization
+
+```
+python gui_edit.py
+```
+
+Then, click
+`Add Model` button to choose trained model, you can choose
+
+- ".ply" file (e.g., "output/NeRF_DS/as/point_cloud/iteration_40000/point_cloud.ply),
+- ".pth" file (e.g., "output/NeRF_DS/as/point_cloud/iteration_40000/point_cloud.ply")
+
 ## BibTex
 
 ```
