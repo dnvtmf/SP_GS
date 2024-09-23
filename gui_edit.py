@@ -1,4 +1,5 @@
 import argparse
+import json
 import math
 from pathlib import Path
 from typing import Dict, List
@@ -14,6 +15,7 @@ import seaborn as sns
 
 from utils.general_utils import inverse_sigmoid
 from utils.system_utils import searchForMaxIteration
+from utils.graphics_utils import getWorld2View2
 from scene.gaussian_model import GaussianModel
 from scene.deform_model import SuperpointModel
 from utils.sh_utils import eval_sh
@@ -105,6 +107,7 @@ class SP_GS_GUI:
         self.gs = GaussianModel(3)
         self.sp = []  # type: List[SuperpointModel]
         self.p2sp = torch.zeros(0, device=self.device)
+        self.db_cameras = []  # cameras in train datasets
 
         dpg.push_container_stack(dpg.add_window(tag='Primary Window'))
         self.viewer = Viewer3D(self.rendering, size=self.image_size, no_resize=False, no_move=True)
@@ -170,6 +173,16 @@ class SP_GS_GUI:
             if not (ply_path.is_file() and pth_path.is_file()):
                 print(f'{pth_path} or {ply_path} is invalied')
                 return
+            self.db_cameras = []
+            cameras_path = ply_path.parent.parent.parent.joinpath('cameras.json')
+
+            if dpg.get_value('load_cameras') and cameras_path.exists():
+                with open(cameras_path, 'r') as f:
+                    data = json.load(f)
+                    self.db_cameras.append(data)
+                    print(f"Load cameras from {cameras_path}")
+            else:
+                self.db_cameras.append([])
             gs = GaussianModel(3)
             gs.load_ply(ply_path)
             pth = torch.load(pth_path, map_location='cpu')
@@ -236,6 +249,9 @@ class SP_GS_GUI:
                 self.sp[-1].train_times.max().item(),
             )
             dpg.configure_item('sp_idx', max_value=len(self.tree_parent))
+            have_camera_ids = [str(i) for i, x in enumerate(self.db_cameras) if x]
+            dpg.configure_item('cam_obj_idx', items=have_camera_ids)
+            dpg.set_value('cam_obj_idx', have_camera_ids[0] if len(have_camera_ids) > 0 else '')
             dpg.push_container_stack('gui_edit')
             self.scene_gui_build(-1)
             dpg.pop_container_stack()
@@ -313,7 +329,8 @@ class SP_GS_GUI:
 
         with dpg.group(horizontal=True):
             dpg.add_button(label='Add Model', callback=add_model)
-
+            dpg.add_text('+camera')
+            dpg.add_checkbox(tag='load_cameras', default_value=True)
             with dpg.file_dialog(
                 directory_selector=False,
                 show=False,
@@ -368,10 +385,10 @@ class SP_GS_GUI:
 
             def change_eye(*args):
                 print('change camera position', args)
-                self.viewer.eye = self.viewer.eye.new_tensor([dpg.get_value(item) for item in
-                                                              ['eye_x', 'eye_y', 'eye_z']])
-                self.viewer.at = self.viewer.at.new_tensor([dpg.get_value(item) for item in
-                                                            ['at_x', 'at_y', 'at_z']])
+                self.viewer.eye = self.viewer.eye.new_tensor(
+                    [dpg.get_value(item) for item in ['eye_x', 'eye_y', 'eye_z']]
+                )
+                self.viewer.at = self.viewer.at.new_tensor([dpg.get_value(item) for item in ['at_x', 'at_y', 'at_z']])
                 self.viewer.need_update = True
 
             def to_camera_pos(x=1, y=0, z=0):
@@ -399,7 +416,44 @@ class SP_GS_GUI:
                 default_value=1,
                 tag='axis_size',
                 label='axis size',
-                callback=self.viewer.set_need_update)
+                callback=self.viewer.set_need_update
+            )
+            with dpg.group(horizontal=True):
+                def change_camera_object(*args, **kwargs):
+                    print(dpg.get_value('cam_obj_idx'))
+                    obj_idx = int(dpg.get_value('cam_obj_idx'))
+                    num_cam = len(self.db_cameras[obj_idx])
+                    dpg.set_value('cam_idx', 0)
+                    dpg.configure_item('cam_idx', max_value=num_cam - 1)
+
+                dpg.add_combo([], tag='cam_obj_idx', callback=change_camera_object, width=50)
+
+                def ch_value():
+                    cam_idx = dpg.get_value('cam_idx')
+                    obj_idx = int(dpg.get_value('cam_obj_idx'))
+                    num_cam = len(self.db_cameras[obj_idx])
+                    if 0 > cam_idx or cam_idx >= num_cam:
+                        dpg.set_value('cam_idx', cam_idx % num_cam)
+
+                dpg.add_input_int(tag='cam_idx', default_value=0, min_value=0, max_value=0, width=150,
+                    callback=ch_value
+                )
+
+                def set_camera_pose():
+                    camera_data = self.db_cameras[int(dpg.get_value('cam_obj_idx'))][dpg.get_value('cam_idx')]
+                    Tv2w = torch.eye(4)
+                    Tv2w[:3, :3] = torch.tensor(camera_data['rotation'])
+                    Tv2w[:3, 3] = torch.tensor(camera_data['position'])
+                    focal_x, focal_y = camera_data['fx'], camera_data['fy']
+                    width, height = camera_data['width'], camera_data['height']
+                    fov_y = math.degrees(ops_3d.focal_to_fov(focal_y, height))
+                    self.viewer.set_pose(Tv2w=Tv2w)
+                    self.viewer.set_fovy(fov_y)
+                    dpg.set_value('set_fovy', fov_y)
+                    self.viewer.resize(width, height)
+                    print(f"use cameras[{dpg.get_value('cam_obj_idx')}][{dpg.get_value('cam_idx')}]")
+
+                dpg.add_button(label='use', callback=set_camera_pose)
 
     def build_gui_render(self):
         with dpg.group(horizontal=True):
@@ -777,7 +831,7 @@ class SP_GS_GUI:
             return self.viewer.data
         Tw2v = Tw2v.cuda()
         # Tw2v = ops_3d.convert_coord_system(Tw2v, 'opengl', 'colmap')
-        Tv2c = ops_3d.perspective_v2(fovy, size=self.image_size).cuda()
+        Tv2c = ops_3d.perspective_v2(fovy, size=self.image_size, n=0.01, f=100.).cuda()
         Tv2w = torch.inverse(Tw2v)
         Tw2c = Tv2c @ Tw2v
         self.now_Tw2c = Tw2c
@@ -1024,7 +1078,7 @@ class SP_GS_GUI:
             if last_size != now_size:
                 dpg.configure_item('control', pos=(dpg.get_item_width(self.viewer.win_tag), 0))
                 dpg.set_viewport_width(dpg.get_item_width(self.viewer.win_tag) + dpg.get_item_width('control'))
-                dpg.set_viewport_height(dpg.get_item_height(self.viewer.win_tag))
+                dpg.set_viewport_height(max(dpg.get_item_height(self.viewer.win_tag), 512))
                 last_size = now_size
             dpg.configure_item('control', label=f"FPS: {dpg.get_frame_rate()}")
             if self.is_save_video:

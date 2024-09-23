@@ -183,7 +183,7 @@ def look_at(eye: Tensor, at: Tensor = None, up: Tensor = None, inv=False) -> Ten
         up = torch.scatter_add(up, -1, y_axis + 1, 1 - y_axis.to(up.dtype) * 2)
     shape = eye.shape
     right_vec = normalize(torch.cross(up, dir_vec, dim=-1))  # 相机空间x轴方向
-    up_vec = torch.cross(right_vec, dir_vec, dim=-1)  # 相机空间y轴方向
+    up_vec = torch.cross(dir_vec, right_vec, dim=-1)  # 相机空间y轴方向
     if inv:
         Tv2w = torch.eye(4, device=eye.device, dtype=eye.dtype).expand(*shape[:-1], -1, -1).contiguous()
         Tv2w[..., :3, 0] = right_vec
@@ -197,7 +197,7 @@ def look_at(eye: Tensor, at: Tensor = None, up: Tensor = None, inv=False) -> Ten
         R[..., 0, :3] = right_vec
         R[..., 1, :3] = up_vec
         R[..., 2, :3] = dir_vec
-        T[..., :3, 3] = eye
+        T[..., :3, 3] = -eye
         world2view = R @ T
         return world2view
 
@@ -563,3 +563,36 @@ def axis_angle_to_quaternion(u: Tensor, theta: Tensor = None):
         u = u / theta[..., None]
     q = quaternion_from_rotate(u, theta)
     return q
+
+
+def test_look_at():
+    Tv2w = torch.tensor(
+        [[0.9820, 0.1723, 0.0776, 0.1915],
+         [-0.1499, 0.9603, -0.2352, -0.2421],
+         [-0.1151, 0.2193, 0.9688, 0.6347],
+         [0.0000, 0.0000, 0.0000, 1.0000]]
+    )
+    eye, at, up = look_at_get(Tv2w)
+    Tw2v = look_at(eye, at, up)
+    eye2, at2, up2 = look_at_get(Tw2v.inverse())
+    Tv2w_2 = look_at(eye2, at2, up2, inv=True)
+    print((Tv2w - Tv2w_2).abs().max())
+    print(Tv2w)
+    print(Tw2v.inverse())
+    print(Tv2w_2)
+
+    for _ in range(1):
+        eye = torch.randn(100, 3)
+        at = torch.randn(100, 3)
+        up = torch.randn(100, 3)
+        Tw2v = look_at(eye, at, up)
+        eye2, at2, up2 = look_at_get(Tw2v.inverse())
+        Tw2v_2 = look_at(eye2, at2, up2)
+        print((Tw2v_2 - Tw2v).abs().max())
+
+        Tv2w = look_at(eye, at, up, inv=True)
+        eye2, at2, up2 = look_at_get(Tv2w)
+        Tv2w_2 = look_at(eye2, at2, up2, inv=True)
+        print((Tv2w - Tv2w_2).abs().max())
+        print((Tv2w - Tw2v.inverse()).abs().max())
+        print(Tw2v[0], Tw2v_2[0])

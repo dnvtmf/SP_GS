@@ -40,6 +40,9 @@ def render_set(
     for idx, view in enumerate(tqdm(views, desc="Rendering progress")):
         if load2gpu_on_the_fly:
             view.load2device()
+        if idx == 0:
+            print(view.world_view_transform.T)
+            print(view.projection_matrix.T)
         fid = view.fid
         xyz = gaussians.get_xyz
         time_input = fid.view(-1)  # fid.unsqueeze(0).expand(xyz.shape[0], -1)

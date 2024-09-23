@@ -84,6 +84,8 @@ Then, click
 - ".ply" file (e.g., "output/NeRF_DS/as/point_cloud/iteration_40000/point_cloud.ply),
 - ".pth" file (e.g., "output/NeRF_DS/as/point_cloud/iteration_40000/point_cloud.ply")
 
+Next, to use the camera of training dataset, first click on the heading `camera`, and then click on the button `use`.
+
 ## BibTex
 
 ```
