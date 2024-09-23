@@ -82,7 +82,7 @@ Then, click
 `Add Model` button to choose trained model, you can choose
 
 - ".ply" file (e.g., "output/NeRF_DS/as/point_cloud/iteration_40000/point_cloud.ply),
-- ".pth" file (e.g., "output/NeRF_DS/as/point_cloud/iteration_40000/point_cloud.ply")
+- ".pth" file (e.g., "output/NeRF_DS/as/deform/iteration_40000/deform.pth")
 
 Next, to use the camera of training dataset, first click on the heading `camera`, and then click on the button `use`.
 
