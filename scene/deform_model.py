@@ -11,7 +11,7 @@ from utils.sampling import furthest_point_sampling
 from utils.system_utils import searchForMaxIteration
 from utils.time_utils import SuperpointDeformationNetwork
 
-DIM_ROTATION = 4
+DIM_ROTATION = 3
 
 
 def get_superpoint_features(value: Tensor, neighbor: Tensor, G: Tensor, num_sp: int):

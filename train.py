@@ -137,7 +137,10 @@ def training(
             loss = loss + losses['re_rot'] * 100  # lambda_re
             loss = loss + losses['re_off'] * 100  # lambda_re
             loss = loss + d_xyz.abs().mean() * lambda_re
-            loss = loss + SO3.InitFromVec(F.normalize(d_rotation, dim=-1)).log().abs().mean() * lambda_re
+            if d_rotation.shape[-1] == 4:
+                loss = loss + SO3.InitFromVec(F.normalize(d_rotation, dim=-1)).log().abs().mean() * lambda_re
+            else:
+                loss = loss + SO3.exp(d_rotation).log().abs().mean() * lambda_re
         loss.backward()
 
         iter_end.record()
